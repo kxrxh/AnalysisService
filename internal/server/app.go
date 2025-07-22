@@ -80,12 +80,15 @@ func New(cfg *config.Config) (*Server, error) {
 
 	// Initialize services
 	analysisService := services.NewAnalysisService(database.NewQueries(db.Pool))
+	objectsService := services.NewObjectsService(database.NewQueries(db.Pool))
 
 	// Initialize handlers
 	analysisHandler := handlers.NewAnalysisHandler(analysisService)
+	objectsHandler := handlers.NewObjectsHandler(objectsService)
 
 	handlers := &Handlers{
 		AnalysisHandler: analysisHandler,
+		ObjectsHandler:  objectsHandler,
 	}
 
 	// Define and register routes

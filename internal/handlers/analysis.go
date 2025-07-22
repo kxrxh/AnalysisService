@@ -6,7 +6,7 @@ import (
 	"csort.ru/analysis-service/internal/services"
 	"csort.ru/analysis-service/pkg/utils"
 	"github.com/gofiber/fiber/v2"
-	"strconv" // Added for parsing Telegram-User-ID
+	"strconv"
 )
 
 var analysisHandlerLog = logger.GetLogger("handlers.analysis")

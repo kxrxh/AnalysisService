@@ -40,7 +40,6 @@ SELECT
     a.id_user AS analysis_id_user,
     a.telegram_link AS analysis_telegram_link,
     a.text AS analysis_text,
-    a.file_source AS analysis_file_source,
     a.scale_mm_pixel AS analysis_scale_mm_pixel,
     a.mass AS analysis_mass,
     a.area AS analysis_area,
@@ -56,7 +55,6 @@ SELECT
     a.w AS analysis_w,
     a.l AS analysis_l,
     a.t AS analysis_t,
-    a.file_output AS analysis_file_output,
     a.id_analysis AS analysis_id_analysis
 FROM objects o
 LEFT JOIN analysis a ON o.id_analysis = a.id

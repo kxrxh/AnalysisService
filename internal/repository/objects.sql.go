@@ -180,7 +180,6 @@ SELECT
     a.id_user AS analysis_id_user,
     a.telegram_link AS analysis_telegram_link,
     a.text AS analysis_text,
-    a.file_source AS analysis_file_source,
     a.scale_mm_pixel AS analysis_scale_mm_pixel,
     a.mass AS analysis_mass,
     a.area AS analysis_area,
@@ -196,7 +195,6 @@ SELECT
     a.w AS analysis_w,
     a.l AS analysis_l,
     a.t AS analysis_t,
-    a.file_output AS analysis_file_output,
     a.id_analysis AS analysis_id_analysis
 FROM objects o
 LEFT JOIN analysis a ON o.id_analysis = a.id
@@ -269,7 +267,6 @@ type GetObjectsByIDsRow struct {
 	AnalysisIDUser       pgtype.Text      `json:"analysis_id_user"`
 	AnalysisTelegramLink pgtype.Text      `json:"analysis_telegram_link"`
 	AnalysisText         pgtype.Text      `json:"analysis_text"`
-	AnalysisFileSource   pgtype.Text      `json:"analysis_file_source"`
 	AnalysisScaleMmPixel pgtype.Float8    `json:"analysis_scale_mm_pixel"`
 	AnalysisMass         pgtype.Float8    `json:"analysis_mass"`
 	AnalysisArea         pgtype.Float8    `json:"analysis_area"`
@@ -285,7 +282,6 @@ type GetObjectsByIDsRow struct {
 	AnalysisW            []byte           `json:"analysis_w"`
 	AnalysisL            []byte           `json:"analysis_l"`
 	AnalysisT            []byte           `json:"analysis_t"`
-	AnalysisFileOutput   pgtype.Text      `json:"analysis_file_output"`
 	AnalysisIDAnalysis   pgtype.Text      `json:"analysis_id_analysis"`
 }
 
@@ -364,7 +360,6 @@ func (q *Queries) GetObjectsByIDs(ctx context.Context, ids []int32) ([]GetObject
 			&i.AnalysisIDUser,
 			&i.AnalysisTelegramLink,
 			&i.AnalysisText,
-			&i.AnalysisFileSource,
 			&i.AnalysisScaleMmPixel,
 			&i.AnalysisMass,
 			&i.AnalysisArea,
@@ -380,7 +375,6 @@ func (q *Queries) GetObjectsByIDs(ctx context.Context, ids []int32) ([]GetObject
 			&i.AnalysisW,
 			&i.AnalysisL,
 			&i.AnalysisT,
-			&i.AnalysisFileOutput,
 			&i.AnalysisIDAnalysis,
 		); err != nil {
 			return nil, err
