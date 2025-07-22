@@ -13,7 +13,7 @@ ORDER BY id;
 -- name: GetObjectsImages :many
 SELECT id, id_analysis, file
 FROM objects
-WHERE id_object = ANY(sqlc.arg(ids)::int[]);
+WHERE id = ANY(sqlc.arg(ids)::int[]);
 
 -- name: GetObjectsImagesForAnalysis :many
 SELECT id, id_analysis, file
@@ -23,7 +23,7 @@ WHERE id_analysis = sqlc.arg(id_analysis);
 -- name: GetObjectsMetadata :many
 SELECT id, id_analysis, m_h, m_s, m_v, m_r, m_g, m_b, l_avg, w_avg, brt_avg, r_avg, g_avg, b_avg, h_avg, s_avg, v_avg, h, s, v, h_m, s_m, v_m, r_m, g_m, b_m, brt_m, w_m, l_m, l, w, l_w, pr, sq, brt, r, g, b, solid, min_h, min_s, min_v, max_h, max_s, max_v, entropy, id_image, color_rhs, geometry, sq_sqcrl, hu1, hu2, hu3, hu4, hu5, hu6
 FROM objects
-WHERE id_object = ANY(sqlc.arg(ids)::int[]);
+WHERE id = ANY(sqlc.arg(ids)::int[]);
 
 -- name: GetObjectsMetadataForAnalysis :many
 SELECT id, id_analysis, m_h, m_s, m_v, m_r, m_g, m_b, l_avg, w_avg, brt_avg, r_avg, g_avg, b_avg, h_avg, s_avg, v_avg, h, s, v, h_m, s_m, v_m, r_m, g_m, b_m, brt_m, w_m, l_m, l, w, l_w, pr, sq, brt, r, g, b, solid, min_h, min_s, min_v, max_h, max_s, max_v, entropy, id_image, color_rhs, geometry, sq_sqcrl, hu1, hu2, hu3, hu4, hu5, hu6

@@ -135,6 +135,11 @@ func (s *AnalysisService) getObjectsForAnalysis(ctx context.Context, analysisID 
 }
 
 func convertAnalysisFromRepo(repoAnalysis repository.Analysis) models.Analysis {
+	idAnalysis, err := strconv.ParseInt(repoAnalysis.IDAnalysis.String, 10, 64)
+	if err != nil {
+		analysisLog.Error().Err(err).Str("idAnalysis", repoAnalysis.IDAnalysis.String).Msg("Failed to parse idAnalysis")
+		return models.Analysis{}
+	}
 	return models.Analysis{
 		ID:           repoAnalysis.ID,
 		DateTime:     repoAnalysis.DateTime.Time,
@@ -160,13 +165,14 @@ func convertAnalysisFromRepo(repoAnalysis repository.Analysis) models.Analysis {
 		L:            repoAnalysis.L,
 		T:            repoAnalysis.T,
 		FileOutput:   repoAnalysis.FileOutput.String,
-		IDAnalysis:   repoAnalysis.IDAnalysis.String,
+		IDAnalysis:   idAnalysis,
 	}
 }
 
 func convertObjectFromRepo(repoObject repository.Object) models.Object {
 	return models.Object{
-		ID:       repoObject.ID,
+		ID:         repoObject.ID,
+		IdAnalysis: repoObject.IDAnalysis.Int64,
 		File:     repoObject.File.String,
 		Class:    repoObject.Class.String,
 		Geometry: repoObject.Geometry.String,
