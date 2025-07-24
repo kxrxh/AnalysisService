@@ -91,17 +91,20 @@ func (h *AnalysisHandler) CreateAnalysis(c *fiber.Ctx) error {
 	userID := c.FormValue("userID")
 	fileHeader, err := c.FormFile("files")
 	if err != nil {
+		analysisHandlerLog.Error().Err(err).Msg("Failed to get file")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "file is required"})
 	}
 
 	file, err := fileHeader.Open()
 	if err != nil {
+		analysisHandlerLog.Error().Err(err).Msg("Failed to open file")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to open file"})
 	}
 	defer file.Close()
 
 	status, _, body, err := h.service.ProxyAnalysisAPICall(c.Context(), product, userID, fileHeader.Filename, file)
 	if err != nil {
+		analysisHandlerLog.Error().Err(err).Msg("Failed to contact analysis API")
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "failed to contact analysis API"})
 	}
 
@@ -110,6 +113,7 @@ func (h *AnalysisHandler) CreateAnalysis(c *fiber.Ctx) error {
 	}
 
 	if err := sonic.Unmarshal(body, &resp); err != nil {
+		analysisHandlerLog.Error().Err(err).Msg("Failed to unmarshal response from analysis API")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "invalid response from analysis API"})
 	}
 
