@@ -18,7 +18,8 @@ type DBConfig struct {
 }
 
 type Config struct {
-	DB DBConfig
+	DB          DBConfig
+	AnalysisAPI string
 }
 
 func LoadConfig() *Config {
@@ -33,6 +34,10 @@ func LoadConfig() *Config {
 		MinConns:        getEnvAsInt32("DB_MIN_CONNS", 2),
 		MaxConnLifetime: getEnvAsInt64("DB_MAX_CONN_LIFETIME", 3600), // seconds
 		MaxConnIdleTime: getEnvAsInt64("DB_MAX_CONN_IDLE_TIME", 300), // seconds
+	}
+	cfg.AnalysisAPI = getEnv("ANALYSIS_API_URL", "")
+	if cfg.AnalysisAPI == "" {
+		panic("ANALYSIS_API_URL is not set")
 	}
 	return cfg
 }

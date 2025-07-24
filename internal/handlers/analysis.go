@@ -1,18 +1,19 @@
 package handlers
 
 import (
+	"strconv"
+
 	"csort.ru/analysis-service/internal/logger"
 	"csort.ru/analysis-service/internal/models"
 	"csort.ru/analysis-service/internal/services"
 	"csort.ru/analysis-service/pkg/utils"
 	"github.com/gofiber/fiber/v2"
-	"strconv"
 )
 
 var analysisHandlerLog = logger.GetLogger("handlers.analysis")
 
 type AnalysisHandler struct {
-	service *services.AnalysisService
+	service     *services.AnalysisService
 }
 
 func NewAnalysisHandler(service *services.AnalysisService) *AnalysisHandler {
@@ -82,4 +83,28 @@ func (h *AnalysisHandler) GetAnalysisObjects(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(objects)
+}
+
+func (h *AnalysisHandler) CreateAnalysis(c *fiber.Ctx) error {
+	product := c.FormValue("product")
+	userID := c.FormValue("userID")
+	fileHeader, err := c.FormFile("files")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "file is required"})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to open file"})
+	}
+	defer file.Close()
+
+	status, headers, body, err := h.service.ProxyAnalysisAPICall(c.Context(), product, userID, fileHeader.Filename, file)
+	if err != nil {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "failed to contact analysis API"})
+	}
+
+	c.Status(status)
+	c.Set("Content-Type", headers.Get("Content-Type"))
+	return c.Send(body)
 }

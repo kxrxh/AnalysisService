@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"strconv"
 
+	"bytes"
+	"io"
+	"mime/multipart"
+	"net/http"
+
 	"csort.ru/analysis-service/internal/logger"
 	"csort.ru/analysis-service/internal/models"
 	"csort.ru/analysis-service/internal/repository"
@@ -21,12 +26,14 @@ const (
 var analysisLog = logger.GetLogger("services.analysis")
 
 type AnalysisService struct {
-	repo *repository.Queries
+	repo        *repository.Queries
+	analysisAPI string
 }
 
-func NewAnalysisService(repo *repository.Queries) *AnalysisService {
+func NewAnalysisService(repo *repository.Queries, analysisAPI string) *AnalysisService {
 	return &AnalysisService{
-		repo: repo,
+		repo:        repo,
+		analysisAPI: analysisAPI,
 	}
 }
 
@@ -134,6 +141,43 @@ func (s *AnalysisService) getObjectsForAnalysis(ctx context.Context, analysisID 
 	return objects, nil
 }
 
+func (s *AnalysisService) ProxyAnalysisAPICall(ctx context.Context, product, userID, fileName string, fileContent io.Reader) (int, http.Header, []byte, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	_ = writer.WriteField("product", product)
+	_ = writer.WriteField("userID", userID)
+
+	fw, err := writer.CreateFormFile("files", fileName)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	if _, err := io.Copy(fw, fileContent); err != nil {
+		return 0, nil, nil, err
+	}
+	writer.Close()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", s.analysisAPI, &buf)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, resp.Header, nil, err
+	}
+
+	return resp.StatusCode, resp.Header, body, nil
+}
+
 func convertAnalysisFromRepo(repoAnalysis repository.Analysis) models.Analysis {
 	idAnalysis, err := strconv.ParseInt(repoAnalysis.IDAnalysis.String, 10, 64)
 	if err != nil {
@@ -173,61 +217,61 @@ func convertObjectFromRepo(repoObject repository.Object) models.Object {
 	return models.Object{
 		ID:         repoObject.ID,
 		IdAnalysis: repoObject.IDAnalysis.Int64,
-		File:     repoObject.File.String,
-		Class:    repoObject.Class.String,
-		Geometry: repoObject.Geometry.String,
-		MH:       repoObject.MH.Float64,
-		MS:       repoObject.MS.Float64,
-		MV:       repoObject.MV.Float64,
-		MR:       repoObject.MR.Float64,
-		MG:       repoObject.MG.Float64,
-		MB:       repoObject.MB.Float64,
-		LAvg:     repoObject.LAvg.Float64,
-		WAvg:     repoObject.WAvg.Float64,
-		BrtAvg:   repoObject.BrtAvg.Float64,
-		RAvg:     repoObject.RAvg.Float64,
-		GAvg:     repoObject.GAvg.Float64,
-		BAvg:     repoObject.BAvg.Float64,
-		HAvg:     repoObject.HAvg.Float64,
-		SAvg:     repoObject.SAvg.Float64,
-		VAvg:     repoObject.VAvg.Float64,
-		H:        repoObject.H.Float64,
-		S:        repoObject.S.Float64,
-		V:        repoObject.V.Float64,
-		HM:       repoObject.HM.Float64,
-		SM:       repoObject.SM.Float64,
-		VM:       repoObject.VM.Float64,
-		RM:       repoObject.RM.Float64,
-		GM:       repoObject.GM.Float64,
-		BM:       repoObject.BM.Float64,
-		BrtM:     repoObject.BrtM.Float64,
-		WM:       repoObject.WM.Float64,
-		LM:       repoObject.LM.Float64,
-		L:        repoObject.L.Float64,
-		W:        repoObject.W.Float64,
-		LW:       repoObject.LW.Float64,
-		Pr:       repoObject.Pr.Float64,
-		Sq:       repoObject.Sq.Float64,
-		Brt:      repoObject.Brt.Float64,
-		R:        repoObject.R.Float64,
-		G:        repoObject.G.Float64,
-		B:        repoObject.B.Float64,
-		Solid:    repoObject.Solid.Float64,
-		MinH:     repoObject.MinH.Float64,
-		MinS:     repoObject.MinS.Float64,
-		MinV:     repoObject.MinV.Float64,
-		MaxH:     repoObject.MaxH.Float64,
-		MaxS:     repoObject.MaxS.Float64,
-		MaxV:     repoObject.MaxV.Float64,
-		Entropy:  repoObject.Entropy.Float64,
-		IDImage:  repoObject.IDImage.Int64,
-		ColorRhs: repoObject.ColorRhs.String,
-		SqSqcrl:  repoObject.SqSqcrl.Float64,
-		Hu1:      repoObject.Hu1.Float64,
-		Hu2:      repoObject.Hu2.Float64,
-		Hu3:      repoObject.Hu3.Float64,
-		Hu4:      repoObject.Hu4.Float64,
-		Hu5:      repoObject.Hu5.Float64,
-		Hu6:      repoObject.Hu6.Float64,
+		File:       repoObject.File.String,
+		Class:      repoObject.Class.String,
+		Geometry:   repoObject.Geometry.String,
+		MH:         repoObject.MH.Float64,
+		MS:         repoObject.MS.Float64,
+		MV:         repoObject.MV.Float64,
+		MR:         repoObject.MR.Float64,
+		MG:         repoObject.MG.Float64,
+		MB:         repoObject.MB.Float64,
+		LAvg:       repoObject.LAvg.Float64,
+		WAvg:       repoObject.WAvg.Float64,
+		BrtAvg:     repoObject.BrtAvg.Float64,
+		RAvg:       repoObject.RAvg.Float64,
+		GAvg:       repoObject.GAvg.Float64,
+		BAvg:       repoObject.BAvg.Float64,
+		HAvg:       repoObject.HAvg.Float64,
+		SAvg:       repoObject.SAvg.Float64,
+		VAvg:       repoObject.VAvg.Float64,
+		H:          repoObject.H.Float64,
+		S:          repoObject.S.Float64,
+		V:          repoObject.V.Float64,
+		HM:         repoObject.HM.Float64,
+		SM:         repoObject.SM.Float64,
+		VM:         repoObject.VM.Float64,
+		RM:         repoObject.RM.Float64,
+		GM:         repoObject.GM.Float64,
+		BM:         repoObject.BM.Float64,
+		BrtM:       repoObject.BrtM.Float64,
+		WM:         repoObject.WM.Float64,
+		LM:         repoObject.LM.Float64,
+		L:          repoObject.L.Float64,
+		W:          repoObject.W.Float64,
+		LW:         repoObject.LW.Float64,
+		Pr:         repoObject.Pr.Float64,
+		Sq:         repoObject.Sq.Float64,
+		Brt:        repoObject.Brt.Float64,
+		R:          repoObject.R.Float64,
+		G:          repoObject.G.Float64,
+		B:          repoObject.B.Float64,
+		Solid:      repoObject.Solid.Float64,
+		MinH:       repoObject.MinH.Float64,
+		MinS:       repoObject.MinS.Float64,
+		MinV:       repoObject.MinV.Float64,
+		MaxH:       repoObject.MaxH.Float64,
+		MaxS:       repoObject.MaxS.Float64,
+		MaxV:       repoObject.MaxV.Float64,
+		Entropy:    repoObject.Entropy.Float64,
+		IDImage:    repoObject.IDImage.Int64,
+		ColorRhs:   repoObject.ColorRhs.String,
+		SqSqcrl:    repoObject.SqSqcrl.Float64,
+		Hu1:        repoObject.Hu1.Float64,
+		Hu2:        repoObject.Hu2.Float64,
+		Hu3:        repoObject.Hu3.Float64,
+		Hu4:        repoObject.Hu4.Float64,
+		Hu5:        repoObject.Hu5.Float64,
+		Hu6:        repoObject.Hu6.Float64,
 	}
 }

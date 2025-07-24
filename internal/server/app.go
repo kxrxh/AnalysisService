@@ -79,7 +79,7 @@ func New(cfg *config.Config) (*Server, error) {
 	app.Use(middleware.Fmt())
 
 	// Initialize services
-	analysisService := services.NewAnalysisService(database.NewQueries(db.Pool))
+	analysisService := services.NewAnalysisService(database.NewQueries(db.Pool), cfg.AnalysisAPI)
 	objectsService := services.NewObjectsService(database.NewQueries(db.Pool))
 
 	// Initialize handlers
