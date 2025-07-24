@@ -7,13 +7,14 @@ import (
 	"csort.ru/analysis-service/internal/models"
 	"csort.ru/analysis-service/internal/services"
 	"csort.ru/analysis-service/pkg/utils"
+	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 )
 
 var analysisHandlerLog = logger.GetLogger("handlers.analysis")
 
 type AnalysisHandler struct {
-	service     *services.AnalysisService
+	service *services.AnalysisService
 }
 
 func NewAnalysisHandler(service *services.AnalysisService) *AnalysisHandler {
@@ -99,12 +100,31 @@ func (h *AnalysisHandler) CreateAnalysis(c *fiber.Ctx) error {
 	}
 	defer file.Close()
 
-	status, headers, body, err := h.service.ProxyAnalysisAPICall(c.Context(), product, userID, fileHeader.Filename, file)
+	status, _, body, err := h.service.ProxyAnalysisAPICall(c.Context(), product, userID, fileHeader.Filename, file)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "failed to contact analysis API"})
 	}
 
-	c.Status(status)
-	c.Set("Content-Type", headers.Get("Content-Type"))
-	return c.Send(body)
+	var resp struct {
+		Response string `json:"Response"`
+	}
+
+	if err := sonic.Unmarshal(body, &resp); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "invalid response from analysis API"})
+	}
+
+	switch status {
+	case fiber.StatusOK:
+		analysis, err := h.service.GetAnalysisByID(c.Context(), resp.Response)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch analysis"})
+		}
+		return c.JSON(analysis)
+	case fiber.StatusBadRequest:
+		analysisHandlerLog.Error().Int("status", status).Msg("Bad request from analysis API")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": resp.Response})
+	default:
+		analysisHandlerLog.Error().Int("status", status).Msg("Unexpected response from analysis API")
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "unexpected response from analysis API"})
+	}
 }
