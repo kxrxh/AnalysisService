@@ -14,6 +14,13 @@ type PaginatedResponse[T any] struct {
 	Offset int32 `json:"offset"`
 }
 
+type Stats struct {
+	Min    float32 `json:"min"`
+	Max    float32 `json:"max"`
+	Avg    float32 `json:"avg"`
+	Median float32 `json:"median"`
+}
+
 type Analysis struct {
 	ID           int32     `json:"id"`
 	DateTime     time.Time `json:"date_time"`
@@ -26,18 +33,18 @@ type Analysis struct {
 	ScaleMmPixel float64   `json:"scale_mm_pixel"`
 	Mass         float64   `json:"mass"`
 	Area         float64   `json:"area"`
-	R            []byte    `json:"r"`
-	G            []byte    `json:"g"`
-	B            []byte    `json:"b"`
-	H            []byte    `json:"h"`
-	S            []byte    `json:"s"`
-	V            []byte    `json:"v"`
-	LabL         []byte    `json:"lab_l"`
-	LabA         []byte    `json:"lab_a"`
-	LabB         []byte    `json:"lab_b"`
-	W            []byte    `json:"w"`
-	L            []byte    `json:"l"`
-	T            []byte    `json:"t"`
+	R            Stats     `json:"r"`
+	G            Stats     `json:"g"`
+	B            Stats     `json:"b"`
+	H            Stats     `json:"h"`
+	S            Stats     `json:"s"`
+	V            Stats     `json:"v"`
+	LabL         Stats     `json:"lab_l"`
+	LabA         Stats     `json:"lab_a"`
+	LabB         Stats     `json:"lab_b"`
+	W            Stats     `json:"w"`
+	L            Stats     `json:"l"`
+	T            Stats     `json:"t"`
 	FileOutput   string    `json:"file_output"`
 	IDAnalysis   int64     `json:"id_analysis"`
 	Objects      []Object  `json:"objects"`

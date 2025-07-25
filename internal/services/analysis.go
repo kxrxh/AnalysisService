@@ -4,16 +4,20 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"bytes"
 	"io"
 	"mime/multipart"
 	"net/http"
 
+	"encoding/json"
+
 	"csort.ru/analysis-service/internal/logger"
 	"csort.ru/analysis-service/internal/models"
 	"csort.ru/analysis-service/internal/repository"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -142,40 +146,65 @@ func (s *AnalysisService) getObjectsForAnalysis(ctx context.Context, analysisID 
 }
 
 func (s *AnalysisService) ProxyAnalysisAPICall(ctx context.Context, product, userID, fileName string, fileContent io.Reader) (int, http.Header, []byte, error) {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
+	// Create a multipart form buffer
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
 
-	_ = writer.WriteField("product", product)
-	_ = writer.WriteField("userID", userID)
+	// Add text fields
+	if err := writer.WriteField("product", product); err != nil {
+		return 0, nil, nil, err
+	}
 
-	fw, err := writer.CreateFormFile("files", fileName)
+	if err := writer.WriteField("userID", userID); err != nil {
+		return 0, nil, nil, err
+	}
+
+	// Create form file field
+	part, err := writer.CreateFormFile("file", fileName)
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	if _, err := io.Copy(fw, fileContent); err != nil {
+
+	// Copy file content to form
+	_, err = io.Copy(part, fileContent)
+	if err != nil {
 		return 0, nil, nil, err
 	}
+
+	// Close the multipart writer
 	writer.Close()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", s.analysisAPI, &buf)
+	// Create fasthttp request
+	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+
+	req.SetRequestURI(s.analysisAPI)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType(writer.FormDataContentType())
+	req.SetBody(body.Bytes())
+
+	// Create response object
+	resp := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(resp)
+
+	// Make the request with context support
+	client := &fasthttp.Client{}
+	err = client.DoTimeout(req, resp, 2*time.Minute)
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, nil, nil, err
-	}
-	defer resp.Body.Close()
+	// Convert fasthttp response headers to http.Header
+	headers := make(http.Header)
+	resp.Header.VisitAll(func(key, value []byte) {
+		headers.Add(string(key), string(value))
+	})
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return resp.StatusCode, resp.Header, nil, err
-	}
+	// Copy response body to avoid issues after response is released
+	responseBody := make([]byte, len(resp.Body()))
+	copy(responseBody, resp.Body())
 
-	return resp.StatusCode, resp.Header, body, nil
+	return resp.StatusCode(), headers, responseBody, nil
 }
 
 func convertAnalysisFromRepo(repoAnalysis repository.Analysis) models.Analysis {
@@ -184,6 +213,16 @@ func convertAnalysisFromRepo(repoAnalysis repository.Analysis) models.Analysis {
 		analysisLog.Error().Err(err).Str("idAnalysis", repoAnalysis.IDAnalysis.String).Msg("Failed to parse idAnalysis")
 		return models.Analysis{}
 	}
+
+	unmarshalStats := func(data []byte, fieldName string) models.Stats {
+		var stats models.Stats
+		if err := json.Unmarshal(data, &stats); err != nil {
+			analysisLog.Error().Err(err).Str("field", fieldName).Msg("Failed to unmarshal stats")
+			return models.Stats{}
+		}
+		return stats
+	}
+
 	return models.Analysis{
 		ID:           repoAnalysis.ID,
 		DateTime:     repoAnalysis.DateTime.Time,
@@ -196,18 +235,18 @@ func convertAnalysisFromRepo(repoAnalysis repository.Analysis) models.Analysis {
 		ScaleMmPixel: repoAnalysis.ScaleMmPixel.Float64,
 		Mass:         repoAnalysis.Mass.Float64,
 		Area:         repoAnalysis.Area.Float64,
-		R:            repoAnalysis.R,
-		G:            repoAnalysis.G,
-		B:            repoAnalysis.B,
-		H:            repoAnalysis.H,
-		S:            repoAnalysis.S,
-		V:            repoAnalysis.V,
-		LabL:         repoAnalysis.LabL,
-		LabA:         repoAnalysis.LabA,
-		LabB:         repoAnalysis.LabB,
-		W:            repoAnalysis.W,
-		L:            repoAnalysis.L,
-		T:            repoAnalysis.T,
+		R:            unmarshalStats(repoAnalysis.R, "R"),
+		G:            unmarshalStats(repoAnalysis.G, "G"),
+		B:            unmarshalStats(repoAnalysis.B, "B"),
+		H:            unmarshalStats(repoAnalysis.H, "H"),
+		S:            unmarshalStats(repoAnalysis.S, "S"),
+		V:            unmarshalStats(repoAnalysis.V, "V"),
+		LabL:         unmarshalStats(repoAnalysis.LabL, "LabL"),
+		LabA:         unmarshalStats(repoAnalysis.LabA, "LabA"),
+		LabB:         unmarshalStats(repoAnalysis.LabB, "LabB"),
+		W:            unmarshalStats(repoAnalysis.W, "W"),
+		L:            unmarshalStats(repoAnalysis.L, "L"),
+		T:            unmarshalStats(repoAnalysis.T, "T"),
 		FileOutput:   repoAnalysis.FileOutput.String,
 		IDAnalysis:   idAnalysis,
 	}
